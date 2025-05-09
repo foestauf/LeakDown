@@ -74,72 +74,141 @@ namespace DvMod.LeakDown
 
     public class Settings : UnityModManager.ModSettings, UnityModManagerNet.IDrawable
     {
-        // Add your settings properties here
-        public float LeakRate = 0.1f;
+        [Draw("Leak Rate Percentage")]
+        public float percentOfRealistic = 100f;  // Make this a saved field
+
+        public float LeakRate = 0.0000293f; // This will be calculated from percentOfRealistic
+
+        const float BaselineDecayRate = 0.0000293f; // ~10% per hour baseline
+
+        public Settings()
+        {
+            // Calculate LeakRate from percentOfRealistic
+            UpdateLeakRate();
+        }
+
+        private void UpdateLeakRate()
+        {
+            LeakRate = percentOfRealistic / 100f * BaselineDecayRate;
+        }
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
+            // Make sure LeakRate is updated before saving
+            UpdateLeakRate();
             UnityModManager.ModSettings.Save<Settings>(this, modEntry);
         }
 
         public void OnChange()
         {
-            // Called when settings are changed
+            // Update LeakRate when settings change
+            UpdateLeakRate();
         }
 
         public void Draw(UnityModManager.ModEntry modEntry)
         {
-            // Simple settings drawing with IMGUI
-            GUILayout.Label($"Leakdown Rate (bar/s): {LeakRate:F2}");
-            LeakRate = GUILayout.HorizontalSlider(LeakRate, 0f, 1f);
+            GUILayout.Label($"Leakdown Rate: {percentOfRealistic:F0}% of real-world (~10%/hr)");
+            float newPercent = GUILayout.HorizontalSlider(percentOfRealistic, 0f, 500f); // 0% to 500%
+
+            // Only update if the value changed
+            if (newPercent != percentOfRealistic)
+            {
+                percentOfRealistic = newPercent;
+                UpdateLeakRate();
+            }
         }
     }
 
     public static class BoilerExtensions
     {
+
         // Add the SimulateLeakdown method to the Boiler class
         public static void SimulateLeakdown(this Boiler boiler, float delta)
         {
+            const float TimeAccelerationFactor = 12f;
             // Only simulate leakdown if the boiler isn't broken and pressure is above atmospheric pressure
             if (boiler.isBrokenReadOut.Value == 0f && boiler.pressureReadOut.Value > 1f)
             {
-                // Base leakdown rate (bar per second)
-                float baseLeakdownRate = 0.001f;
+                // Base decay rate - represents about 10% per hour at 100% setting
+                float baseDecayRate = Main.Settings.LeakRate * TimeAccelerationFactor;
 
-                // Apply user-configured leak rate from settings
-                float leakRate = Main.Settings.LeakRate;
-                if (leakRate > 0)
+                float pressureBefore = boiler.pressureReadOut.Value;
+                float pressureLossRate = pressureBefore * baseDecayRate;
+
+                // Apply more aggressive scaling at higher percentages
+                if (Main.Settings.percentOfRealistic > 100f)
                 {
-                    baseLeakdownRate = leakRate;
+                    // More aggressive curve: 1.0x at 100%, 10.0x at 500%
+                    float scaleFactor = 1f + (Main.Settings.percentOfRealistic - 100f) / 100f * 2.25f;
+                    pressureLossRate *= scaleFactor;
+
+#if DEBUG
+                    // Add debug logging to show the actual multiplier being applied
+                    if (UnityEngine.Random.value < 0.01f)
+                    {
+                        Main.ModEntry?.Logger.Log($"[LeakDown] Using enhanced scale factor: {scaleFactor:F2}x at {Main.Settings.percentOfRealistic:F0}%");
+                    }
+#endif
                 }
 
-                // Leakdown increases with pressure (higher pressure = more leakage)
-                float pressureMultiplier = boiler.pressureReadOut.Value / 10f;
+                // Calculate amount of steam to remove, ensuring we don't go below 1 bar
+                float steamToRemove = Math.Min(pressureLossRate, pressureBefore - 1f);
 
-                // Calculate the amount of steam to remove
-                float steamToRemove = baseLeakdownRate * pressureMultiplier * delta;
+                // Limit the loss rate to prevent pressure going below 1 bar
+                float maxAllowableLossRate = (pressureBefore - 1f) / delta;
+                float steamConsumptionRate = Math.Min(pressureLossRate, maxAllowableLossRate);
 
                 // Remove a small amount of steam to simulate leakdown
                 if (steamToRemove > 0f && boiler.pressureReadOut.Value > 0)
                 {
                     try
                     {
-                        // Access the internal vessel to remove steam directly
-                        typeof(Boiler).GetMethod("SimulateSteamConsumption", BindingFlags.NonPublic | BindingFlags.Instance)
-                            ?.Invoke(boiler, new object[] { steamToRemove });
+                        // Get the vessel field using reflection
+                        FieldInfo vesselField = typeof(Boiler).GetField("vessel",
+                            BindingFlags.NonPublic | BindingFlags.Instance);
 
-                        // Optional debug logging
-                        if (UnityEngine.Random.value < 0.01f) // Only log occasionally
+                        if (vesselField != null)
                         {
-                            Main.ModEntry?.Logger.Log($"Boiler leak: {steamToRemove} bar/s, Current pressure: {boiler.pressureReadOut.Value}");
+                            // Get the vessel instance
+                            WaterPressureVessel vessel = (WaterPressureVessel)vesselField.GetValue(boiler);
+
+                            if (vessel != null)
+                            {
+                                // Call the public RemoveSteam method directly
+                                // Apply a minimum effect to ensure it's noticeable
+                                float actualRemovalRate = Math.Max(steamConsumptionRate, 0.1f * baseDecayRate) * delta;
+                                vessel.RemoveSteam(actualRemovalRate);
+
+#if DEBUG
+                                // More frequent and informative debug logging
+                                if (UnityEngine.Random.value < 0.05f) // Log more frequently
+                                {
+                                    Main.ModEntry?.Logger.Log(
+                                       $"[LeakDown] Removing {actualRemovalRate:F6} steam mass (delta={delta:F3}), " +
+                                       $"Current pressure: {boiler.pressureReadOut.Value:F2} bar, " +
+                                       $"Base rate: {baseDecayRate:F6}, Percent: {Main.Settings.percentOfRealistic:F0}%"
+                                   );
+                                }
+#endif
+                            }
+                            else
+                            {
+                                Main.ModEntry?.Logger.Log("Vessel object is null");
+                            }
+                        }
+                        else
+                        {
+                            Main.ModEntry?.Logger.Log("Could not find vessel field");
                         }
                     }
                     catch (Exception ex)
                     {
+#if DEBUG
                         if (UnityEngine.Random.value < 0.001f) // Log errors, but not too often
                         {
                             Main.ModEntry?.Logger.Log($"Error in SimulateLeakdown: {ex.Message}");
                         }
+#endif
                     }
                 }
             }
@@ -177,7 +246,9 @@ namespace DvMod.LeakDown
             if (mainResPressureField != null &&
                 hasCompressorField != null && mainResVolumeField != null)
             {
+#if DEBUG
                 Main.ModEntry?.Logger.Log("Brake system fields found");
+#endif
                 // Get the field values
                 float mainReservoirPressure = (float)mainResPressureField.GetValue(__instance);
                 bool hasCompressor = (bool)hasCompressorField.GetValue(__instance);
@@ -187,7 +258,9 @@ namespace DvMod.LeakDown
                 var ventMethod = typeof(DV.Simulation.Brake.BrakeSystem).GetMethod("VentToAtmosphere",
                     BindingFlags.Public | BindingFlags.Instance);
 
+#if DEBUG
                 Main.ModEntry?.Logger.Log($"VentToAtmosphere method found: {ventMethod != null}");
+#endif
 
                 if (ventMethod != null)
                 {
@@ -203,11 +276,13 @@ namespace DvMod.LeakDown
                         mainResPressureField.SetValue(__instance, ventParams[1]);
                     }
 
+#if DEBUG
                     // Debug logging occasionally
                     if (UnityEngine.Random.value < 0.001f)
                     {
                         Main.ModEntry?.Logger.Log($"Brake system leak: Main res: {mainReservoirPressure}");
                     }
+#endif
                 }
             }
         }
