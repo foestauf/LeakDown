@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <PublicizerMetadataFlags>KeepOldMaxStack</PublicizerMetadataFlags>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,11 @@
+{
+  "Id": "DvMod.LeakDown",
+  "DisplayName": "Leak Down",
+  "Author": "Robert McKee",
+  "Version": "0.0.1",
+  "LoadAfter": [],
+  "AssemblyName": "LeakDown.dll",
+  "EntryMethod": "DvMod.LeakDown.Main.Load",
+  "HomePage": "https://www.nexusmods.com/derailvalley",
+  "Repository": "https://github.com/yourusername/dv-leakdown"
+}

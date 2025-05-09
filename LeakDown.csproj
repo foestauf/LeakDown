@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DvMod.LeakDown</RootNamespace>
+    <InformationalVersion>0.0.1</InformationalVersion>
+    <!-- Set your actual Derail Valley installation path here -->
+    <!-- <DerailValleyPath Condition="'$(DerailValleyPath)' == ''">D:\SteamLibrary\steamapps\common\Derail Valley</DerailValleyPath> -->
+         <ReferencePath>D:\SteamLibrary\steamapps\common\Derail Valley\DerailValley_Data\Managed</ReferencePath>
+    <AssemblySearchPaths>$(AssemblySearchPaths);$(ReferencePath);</AssemblySearchPaths>
+  </PropertyGroup>
+
+    <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.2.1"/>
+    <Publicize Include="Assembly-CSharp" IncludeCompilerGeneratedMembers="false"/>
+    
+  </ItemGroup>
+
+    <ItemGroup>
+    <Reference Include="DV.BrakeSystem"/>
+    <Reference Include="DV.Simulation"/>
+    </ItemGroup>
+  
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(DerailValleyPath)\DerailValley_Data\Managed\UnityModManager\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp"/>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(DerailValleyPath)\DerailValley_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(DerailValleyPath)\DerailValley_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityModManager">
+      <HintPath>$(DerailValleyPath)\DerailValley_Data\Managed\UnityModManager\UnityModManager.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
