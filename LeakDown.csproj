@@ -5,7 +5,7 @@
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>DvMod.LeakDown</RootNamespace>
-    <InformationalVersion>0.0.1</InformationalVersion>
+    <InformationalVersion>0.1.0</InformationalVersion>
     <!-- Set your actual Derail Valley installation path here -->
     <!-- <DerailValleyPath Condition="'$(DerailValleyPath)' == ''">D:\SteamLibrary\steamapps\common\Derail Valley</DerailValleyPath> -->
          <ReferencePath>D:\SteamLibrary\steamapps\common\Derail Valley\DerailValley_Data\Managed</ReferencePath>

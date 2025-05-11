@@ -203,12 +203,10 @@ namespace DvMod.LeakDown
                     }
                     catch (Exception ex)
                     {
-#if DEBUG
                         if (UnityEngine.Random.value < 0.001f) // Log errors, but not too often
                         {
                             Main.ModEntry?.Logger.Log($"Error in SimulateLeakdown: {ex.Message}");
                         }
-#endif
                     }
                 }
             }

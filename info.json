@@ -1,8 +1,8 @@
 {
   "Id": "DvMod.LeakDown",
   "DisplayName": "Leak Down",
-  "Author": "Robert McKee",
-  "Version": "0.0.1",
+  "Author": "Foestauf",
+  "Version": "0.1.0",
   "LoadAfter": [],
   "AssemblyName": "LeakDown.dll",
   "EntryMethod": "DvMod.LeakDown.Main.Load",
