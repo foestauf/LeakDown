@@ -64,7 +64,7 @@ namespace DvMod.LeakDown
         }
     }
 
-    public class Settings : UnityModManager.ModSettings, UnityModManagerNet.IDrawable
+    public class Settings : UnityModManager.ModSettings
     {
         // Steam boiler leakdown: 0–500% of real-world baseline (~10% per in-game hour)
         [Draw("Steam Leakdown Rate %")]
@@ -74,34 +74,19 @@ namespace DvMod.LeakDown
         [Draw("Brake Leakdown Rate %")]
         public float percentBrakeOfRealistic = 100f;
 
-        // Exposed decay rates (per second, real-world base)
-        [XmlIgnore]
-        public float LeakRate { get; private set; }
-        [XmlIgnore]
-        public float BrakeLeakRate { get; private set; }
-
-        const float BaselineDecayRate = 0.0000293f; // ~=10% per hour in real time
+        public const float BASELINE_K = 0.0000293f;
+        public const float TIME_SCALE = 12f;     // 24 IGh / 2 RT h
 
         public Settings()
         {
-            UpdateLeakRates();
-        }
-
-        private void UpdateLeakRates()
-        {
-            LeakRate = percentOfRealistic / 100f * BaselineDecayRate;
-            BrakeLeakRate = percentBrakeOfRealistic / 100f * BaselineDecayRate;
+            percentOfRealistic = 100f;
+            percentBrakeOfRealistic = 100f;
         }
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
-            UpdateLeakRates();
-            UnityModManager.ModSettings.Save(this, modEntry);
-        }
 
-        public void OnChange()
-        {
-            UpdateLeakRates();
+            UnityModManager.ModSettings.Save(this, modEntry);
         }
 
         public void Draw(UnityModManager.ModEntry modEntry)
@@ -112,7 +97,6 @@ namespace DvMod.LeakDown
             if (newSteam != percentOfRealistic)
             {
                 percentOfRealistic = newSteam;
-                UpdateLeakRates();
             }
 
             GUILayout.Space(10);
@@ -123,49 +107,64 @@ namespace DvMod.LeakDown
             if (newBrake != percentBrakeOfRealistic)
             {
                 percentBrakeOfRealistic = newBrake;
-                UpdateLeakRates();
             }
         }
     }
 
     public static class BoilerExtensions
     {
+        // Cache reflection for performance
+        private static readonly System.Reflection.FieldInfo VesselField = typeof(Boiler).GetField("vessel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
         public static void SimulateLeakdown(this Boiler boiler, float delta)
         {
-            const float TimeAccelerationFactor = 12f;
-            if (boiler.isBrokenReadOut.Value == 0f && boiler.pressureReadOut.Value > 1f)
+            // Only skip leakdown if boiler is broken AND pressure is already at minimum
+            if (boiler.isBrokenReadOut.Value != 0f && boiler.pressureReadOut.Value <= 1f) return;
+
+            float userFrac = Main.Settings.percentOfRealistic / 100f;
+            float k = Settings.BASELINE_K * userFrac * Settings.TIME_SCALE;
+
+            float P0 = boiler.pressureReadOut.Value;
+            // guard against invalid pressure and divide by zero
+            if (P0 <= 0f) return;
+
+            float P1 = Mathf.Max(P0 * Mathf.Exp(-k * delta), 1f);  // never below 1 bar
+            float fracDrop = 1f - (P1 / P0);
+
+            if (fracDrop <= 0f) return;
+
+            var vessel = (WaterPressureVessel)VesselField.GetValue(boiler);
+
+            if (vessel == null) return;
+
+            float m0 = vessel.mass;
+
+            // compute steam-only mass and remove proportionally
+            float waterSpecificVol = SteamTables.WaterSpecificVolume(P0);
+            float waterMass = vessel.waterVolume / waterSpecificVol;
+            float steamMass = m0 - waterMass;
+            float massToRemove = steamMass * fracDrop;
+
+            if (massToRemove > 0f)
             {
-                float baseDecayRate = Main.Settings.LeakRate * TimeAccelerationFactor;
-                float pressureBefore = boiler.pressureReadOut.Value;
-                float pressureLossRate = pressureBefore * baseDecayRate;
-
-                if (Main.Settings.percentOfRealistic > 100f)
+                // occasional debug logging (~1% of ticks)
+#if DEBUG
+                if (UnityEngine.Random.value < 0.01f)
                 {
-                    float scaleFactor = 1f + (Main.Settings.percentOfRealistic - 100f) / 100f * 2.25f;
-                    pressureLossRate *= scaleFactor;
+                    Main.ModEntry?.Logger.Log(
+                        $"[LeakDown DEBUG] Δt={delta:F4}, k={k:E6}, P0={P0:F6}, P1={P1:F6}, ΔP={P1 - P0:F6}, fracDrop={fracDrop:E6}, m0={m0:F3}, remove={massToRemove:F6}"
+                    );
                 }
+#endif
 
-                float steamToRemove = Math.Min(pressureLossRate, pressureBefore - 1f);
-                float maxAllowable = (pressureBefore - 1f) / delta;
-                float consumption = Math.Min(pressureLossRate, maxAllowable);
-
-                if (steamToRemove > 0f && boiler.pressureReadOut.Value > 0f)
-                {
-                    try
-                    {
-                        FieldInfo vesselField = typeof(Boiler).GetField("vessel", BindingFlags.NonPublic | BindingFlags.Instance);
-                        if (vesselField != null)
-                        {
-                            var vessel = (WaterPressureVessel)vesselField.GetValue(boiler);
-                            if (vessel != null)
-                            {
-                                float actualRemoval = Math.Max(consumption, 0.1f * baseDecayRate) * delta;
-                                vessel.RemoveSteam(actualRemoval);
-                            }
-                        }
-                    }
-                    catch { }
-                }
+                // remove steam directly from the vessel
+                vessel.RemoveSteam(massToRemove);
+                vessel.Update();
+                // propagate new pressure back into the boiler readout
+                boiler.pressureReadOut.Value = vessel.pressure;
+                // verify that mass and pressure actually changed
+                float newMass = vessel.mass;
+                float newPressure = vessel.pressure;
             }
         }
     }

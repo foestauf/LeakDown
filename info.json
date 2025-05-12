@@ -2,10 +2,9 @@
   "Id": "DvMod.LeakDown",
   "DisplayName": "Leak Down",
   "Author": "Foestauf",
-  "Version": "0.1.0",
+  "Version": "0.2.0",
   "LoadAfter": [],
   "AssemblyName": "LeakDown.dll",
   "EntryMethod": "DvMod.LeakDown.Main.Load",
-  "HomePage": "https://www.nexusmods.com/derailvalley",
-  "Repository": "https://github.com/yourusername/dv-leakdown"
+  "HomePage": "https://www.nexusmods.com/derailvalley/mods/1181"
 }
