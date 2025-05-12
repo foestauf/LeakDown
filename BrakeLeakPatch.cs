@@ -10,10 +10,7 @@ namespace DvMod.LeakDown
     [HarmonyPatch("SimulateLeakage")]
     public static class BrakeSystemSimulateLeakagePatch
     {
-        // Match your boiler’s 24h→2h time scale
-        const float TimeAccelerationFactor = 12f;
-        // ~10% (0.1) per hour real world → per second:
-        const float BaselineBrakeDecay = 0.0000293f;
+
 
         [HarmonyPostfix]
         public static void Postfix(DV.Simulation.Brake.BrakeSystem __instance, float dt)
@@ -42,50 +39,29 @@ namespace DvMod.LeakDown
                     return;
                 }
 
-                // Now we are reasonably sure this is a locomotive's main reservoir
-                // and its compressor is off. Proceed with custom leak logic.
-
-                float mainResPressure = __instance.mainReservoirPressure;
-
-                var field = typeof(DV.Simulation.Brake.BrakeSystem)
-                    .GetField("mainReservoirPressureUnsmoothed", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (field == null) return;
-
-                float pressureBefore = (float)field.GetValue(__instance);
+                float pressureBefore = __instance.mainReservoirPressure;
                 if (pressureBefore < 1f) return;
 
                 // BrakeLeakRate should include the slider percentage, but the logs show it doesn't
                 // Let's calculate the correct value directly
-                float sliderMultiplier = Main.Settings.percentBrakeOfRealistic / 100f;
-                float correctRate = BaselineBrakeDecay * sliderMultiplier;
-                float decayRate = correctRate * TimeAccelerationFactor;
+                float sliderFrac = Main.Settings.percentBrakeOfRealistic / 100f;
+                float k = Settings.BASELINE_K * sliderFrac * Settings.TIME_SCALE;
 
-#if DEBUG
-                // Occasional debug of raw values
-                if (UnityEngine.Random.value < 0.01f)
-                {
-                    float expectedRate = Main.Settings.percentBrakeOfRealistic / 100f * BaselineBrakeDecay;
-                    Main.ModEntry?.Logger.Log(
-                        $"[BrakeLeak] Slider: {Main.Settings.percentBrakeOfRealistic}%, MainRate: {Main.Settings.BrakeLeakRate}, " +
-                        $"Calculated: {correctRate:E}, Final: {decayRate:F6}"
-                    );
-                }
-
-#endif
-
-                // Exponential decay: Pnew = P0 * e^(–k·dt)
-                float pressureAfter = pressureBefore * Mathf.Exp(-decayRate * dt);
-
-                // Write it back
+                // Mass-based exponential leak: m = V·P
+                float massBefore = __instance.MainResAirMass;
+                float massAfter = massBefore * Mathf.Exp(-k * dt);
+                float massRemoved = massBefore - massAfter;
+                // derive new pressure from remaining mass
+                float pressureAfter = massAfter / __instance.mainResVolume;
+                // apply new pressure
                 __instance.SetMainReservoirPressure(pressureAfter);
 
 #if DEBUG
                 // Occasional debug
                 if (UnityEngine.Random.value < 0.01f)
                 {
-                    float lost = pressureBefore - pressureAfter;
                     Main.ModEntry?.Logger.Log(
-                        $"[BrakeLeak] Lost {lost:F3} psi → New pressure: {pressureAfter:F3} psi (decayRate={decayRate:F6})"
+                        $"[BrakeLeak DEBUG] P0={pressureBefore:F3}→{pressureAfter:F3}, m0={massBefore:F4}→{massAfter:F4}, removed={massRemoved:F4} (k={k:F6})"
                     );
                 }
 #endif
