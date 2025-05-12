@@ -9,7 +9,7 @@
   </PropertyGroup>
 
     <ItemGroup>
-    <PackageReference Include="Krafs.Publicizer" Version="2.2.1"/>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0"/>
     <Publicize Include="Assembly-CSharp" IncludeCompilerGeneratedMembers="false"/>
     
   </ItemGroup>
