@@ -1,11 +1,9 @@
-// filepath: f:\dv-mods\LeakDown\Main.cs
-using System;
 using System.Reflection;
 using HarmonyLib;
 using LocoSim.Implementations;
 using UnityEngine;
 using UnityModManagerNet;
-using System.Xml.Serialization;
+using DV;
 
 namespace DvMod.LeakDown
 {
@@ -62,6 +60,8 @@ namespace DvMod.LeakDown
             HarmonyInstance?.UnpatchAll(modEntry.Info.Id);
             return true;
         }
+        // Dynamic time compression based on current game day length
+        public static float TimeScale => 1440f / Globals.G.GameParams.DayLengthInMinutes;
     }
 
     public class Settings : UnityModManager.ModSettings
@@ -75,18 +75,11 @@ namespace DvMod.LeakDown
         public float percentBrakeOfRealistic = 100f;
 
         public const float BASELINE_K = 0.0000293f;
-        public const float TIME_SCALE = 12f;     // 24 IGh / 2 RT h
 
         public Settings()
         {
             percentOfRealistic = 100f;
             percentBrakeOfRealistic = 100f;
-        }
-
-        public override void Save(UnityModManager.ModEntry modEntry)
-        {
-
-            UnityModManager.ModSettings.Save(this, modEntry);
         }
 
         public void Draw(UnityModManager.ModEntry modEntry)
@@ -114,7 +107,7 @@ namespace DvMod.LeakDown
     public static class BoilerExtensions
     {
         // Cache reflection for performance
-        private static readonly System.Reflection.FieldInfo VesselField = typeof(Boiler).GetField("vessel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        private static readonly FieldInfo VesselField = typeof(Boiler).GetField("vessel", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public static void SimulateLeakdown(this Boiler boiler, float delta)
         {
@@ -122,7 +115,7 @@ namespace DvMod.LeakDown
             if (boiler.isBrokenReadOut.Value != 0f && boiler.pressureReadOut.Value <= 1f) return;
 
             float userFrac = Main.Settings.percentOfRealistic / 100f;
-            float k = Settings.BASELINE_K * userFrac * Settings.TIME_SCALE;
+            float k = Settings.BASELINE_K * userFrac * Main.TimeScale;
 
             float P0 = boiler.pressureReadOut.Value;
             // guard against invalid pressure and divide by zero

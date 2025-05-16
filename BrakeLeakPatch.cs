@@ -45,7 +45,7 @@ namespace DvMod.LeakDown
                 // BrakeLeakRate should include the slider percentage, but the logs show it doesn't
                 // Let's calculate the correct value directly
                 float sliderFrac = Main.Settings.percentBrakeOfRealistic / 100f;
-                float k = Settings.BASELINE_K * sliderFrac * Settings.TIME_SCALE;
+                float k = Settings.BASELINE_K * sliderFrac * Main.TimeScale;
 
                 // Mass-based exponential leak: m = V·P
                 float massBefore = __instance.MainResAirMass;
