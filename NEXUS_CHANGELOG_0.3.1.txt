@@ -1,0 +1,72 @@
+VERSION 0.3.1 - STEAM BOILER LEAKDOWN + WEAR SYSTEM (CRITICAL FIX)
+
+=== MAJOR NEW FEATURES ===
+
+STEAM BOILER LEAKDOWN IS HERE!
+• Boilers now lose pressure over time when not firing (~10% per in-game hour)
+• Only steam is removed - water stays where it belongs
+• Separate slider control from brake leakdown (0-500% configurable)
+• Finally brings realistic steam locomotive operation to the game!
+
+LOCOMOTIVE WEAR SYSTEM
+• Leak rates now dynamically adjust based on your locomotive's condition
+• Fully Restored Locomotives: Leak 20% SLOWER (0.8x rate) - those new seals work!
+• Normal Condition: Standard leak rate (1.0x)
+• Damaged/Derailed: Leak 2.0-2.5x FASTER - significant penalty for poor maintenance
+• Broken Boiler: Catastrophic 4.0x leak rate - get to a workshop immediately!
+• Integrates seamlessly with Derail Valley's restoration system
+
+=== CRITICAL FIX (0.3.1) ===
+
+WEAR SYSTEM NOW ACTUALLY WORKS!
+• Version 0.3.0 had a bug where the wear system wasn't functioning
+• All locomotives were using the default 1.0x multiplier regardless of condition
+• This has been completely fixed - wear multipliers now properly applied
+• Damaged locomotives will now correctly leak much faster
+• Restored locomotives will now correctly leak slower
+• No more warning messages in logs
+
+=== WHAT'S NEW FROM 0.2.0 ===
+
+NEW SYSTEMS
+• Steam boiler leakdown simulation (exponential pressure decay)
+• WearCalculator system for condition-based leak rates
+• Separate steam and brake leakdown sliders
+• Debug logging for troubleshooting (DEBUG builds only)
+
+IMPROVEMENTS
+• Massive code refactoring for better performance
+• Optimized with cached lookups
+• Better architecture following game design patterns
+• Clean, maintainable codebase
+
+FIXES
+• Resolved long-standing TrainCar access issues
+• Fixed patch architecture for proper locomotive detection
+• Removed broken reflection code
+• Eliminated warning messages
+
+=== CONFIGURATION ===
+
+Two independent sliders in Unity Mod Manager:
+• Steam Leakdown Rate: 0-500% (default 100% = ~10%/hour)
+• Brake Leakdown Rate: 0-500% (default 100% = ~10%/hour)
+
+NOTE: Actual leak rate automatically adjusts based on locomotive condition!
+A damaged loco at 100% setting will leak faster than a restored loco at 100%.
+
+=== COMPATIBILITY ===
+
+• Works with all steam locomotives (S060, S282)
+• Works with all locomotives with air brakes
+• Compatible with time compression/acceleration
+• Works during sleep and time travel
+• Integrates with Derail Valley's restoration mechanics
+• No known mod conflicts
+
+=== UPGRADING FROM 0.2.0 ===
+
+Simply install and enable - no special steps required!
+Your existing settings will be preserved, but you'll have a new slider for steam leakdown.
+
+
