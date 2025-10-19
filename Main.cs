@@ -1,6 +1,5 @@
 using System.Reflection;
 using HarmonyLib;
-using LocoSim.Implementations;
 using UnityEngine;
 using UnityModManagerNet;
 using DV;
@@ -101,75 +100,6 @@ namespace DvMod.LeakDown
             {
                 percentBrakeOfRealistic = newBrake;
             }
-        }
-    }
-
-    public static class BoilerExtensions
-    {
-        // Cache reflection for performance
-        private static readonly FieldInfo VesselField = typeof(Boiler).GetField("vessel", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        public static void SimulateLeakdown(this Boiler boiler, float delta)
-        {
-            // Only skip leakdown if boiler is broken AND pressure is already at minimum
-            if (boiler.isBrokenReadOut.Value != 0f && boiler.pressureReadOut.Value <= 1f) return;
-
-            float userFrac = Main.Settings.percentOfRealistic / 100f;
-            float k = Settings.BASELINE_K * userFrac * Main.TimeScale;
-
-            float P0 = boiler.pressureReadOut.Value;
-            // guard against invalid pressure and divide by zero
-            if (P0 <= 0f) return;
-
-            float P1 = Mathf.Max(P0 * Mathf.Exp(-k * delta), 1f);  // never below 1 bar
-            float fracDrop = 1f - (P1 / P0);
-
-            if (fracDrop <= 0f) return;
-
-            var vessel = (WaterPressureVessel)VesselField.GetValue(boiler);
-
-            if (vessel == null) return;
-
-            float m0 = vessel.mass;
-
-            // compute steam-only mass and remove proportionally
-            float waterSpecificVol = SteamTables.WaterSpecificVolume(P0);
-            float waterMass = vessel.waterVolume / waterSpecificVol;
-            float steamMass = m0 - waterMass;
-            float massToRemove = steamMass * fracDrop;
-
-            if (massToRemove > 0f)
-            {
-                // occasional debug logging (~1% of ticks)
-#if DEBUG
-                if (UnityEngine.Random.value < 0.01f)
-                {
-                    Main.ModEntry?.Logger.Log(
-                        $"[LeakDown DEBUG] Δt={delta:F4}, k={k:E6}, P0={P0:F6}, P1={P1:F6}, ΔP={P1 - P0:F6}, fracDrop={fracDrop:E6}, m0={m0:F3}, remove={massToRemove:F6}"
-                    );
-                }
-#endif
-
-                // remove steam directly from the vessel
-                vessel.RemoveSteam(massToRemove);
-                vessel.Update();
-                // propagate new pressure back into the boiler readout
-                boiler.pressureReadOut.Value = vessel.pressure;
-                // verify that mass and pressure actually changed
-                float newMass = vessel.mass;
-                float newPressure = vessel.pressure;
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(Boiler))]
-    [HarmonyPatch("Tick")]
-    public static class BoilerTickPatch
-    {
-        [HarmonyPostfix]
-        public static void Postfix(Boiler __instance, float delta)
-        {
-            __instance.SimulateLeakdown(delta);
         }
     }
 }

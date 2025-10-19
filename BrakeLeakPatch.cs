@@ -40,12 +40,10 @@ namespace DvMod.LeakDown
                 }
 
                 float pressureBefore = __instance.mainReservoirPressure;
-                if (pressureBefore < 1f) return;
-
-                // BrakeLeakRate should include the slider percentage, but the logs show it doesn't
-                // Let's calculate the correct value directly
+                if (pressureBefore < 1f) return;                // Calculate leak rate with wear multiplier
                 float sliderFrac = Main.Settings.percentBrakeOfRealistic / 100f;
-                float k = Settings.BASELINE_K * sliderFrac * Main.TimeScale;
+                float wearMultiplier = WearCalculator.GetBrakeWearMultiplier(trainCar);
+                float k = Settings.BASELINE_K * sliderFrac * wearMultiplier * Main.TimeScale;
 
                 // Mass-based exponential leak: m = V·P
                 float massBefore = __instance.MainResAirMass;
@@ -56,12 +54,11 @@ namespace DvMod.LeakDown
                 // apply new pressure
                 __instance.SetMainReservoirPressure(pressureAfter);
 
-#if DEBUG
-                // Occasional debug
+#if DEBUG                // Occasional debug
                 if (UnityEngine.Random.value < 0.01f)
                 {
                     Main.ModEntry?.Logger.Log(
-                        $"[BrakeLeak DEBUG] P0={pressureBefore:F3}→{pressureAfter:F3}, m0={massBefore:F4}→{massAfter:F4}, removed={massRemoved:F4} (k={k:F6})"
+                        $"[BrakeLeak DEBUG] P0={pressureBefore:F3}→{pressureAfter:F3}, m0={massBefore:F4}→{massAfter:F4}, removed={massRemoved:F4} (k={k:F6}, wear={wearMultiplier:F2})"
                     );
                 }
 #endif
