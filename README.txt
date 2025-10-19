@@ -2,11 +2,23 @@ Realistic leakdown simulation for Derail Valley.
 
 This mod simulates natural pressure loss in steam boilers and brake air reservoirs. Steam engines and air brake systems in real life lose pressure over time due to small leaks—this mod brings that realism into the game!
 
+⭐ What's New in v0.3.0
+• STEAM BOILER LEAKDOWN IS HERE! Boilers now lose pressure over time when not firing
+• Locomotive wear matters! Damaged/derailed locos leak up to 2.5x faster
+• Fully restored locomotives leak 20% slower (better seals and gaskets)
+• Broken boilers leak catastrophically at 4x rate
+• Both brake AND boiler systems now fully operational!
+
 ✅ Features
-- Realistic steam boiler leakdown: Only the actual steam mass (not water) is lost, matching real-world physics. Pressure drops slowly, especially in large, water-filled boilers.
-- Realistic brake reservoir leakdown: Air mass is removed from the main reservoir, causing pressure to fall at a physically accurate rate.
-- Configurable leak rates (0%–500% of realistic baseline) for both systems.
-- Time-acceleration aware (scales to the game’s in-game day speed).
+- Realistic steam boiler leakdown: Only the actual steam mass (not water) is lost, matching real-world physics. Pressure drops slowly, especially in large, water-filled boilers (~10% per in-game hour at default).
+- Realistic brake reservoir leakdown: Air mass is removed from the main reservoir, causing pressure to fall at a physically accurate rate (~10% per in-game hour at default).
+- Locomotive wear system: Leak rates dynamically adjust based on locomotive condition!
+  • Fully restored locos: 0.8x leak rate (better seals)
+  • Normal condition: 1.0x leak rate
+  • Damaged/derailed: 2.0-2.5x leak rate (significant leaks)
+  • Broken boiler: 4.0x leak rate (catastrophic failure)
+- Configurable leak rates (0%–500% of realistic baseline) for both steam and brake systems.
+- Time-acceleration aware (scales to the game's in-game day speed).
 - Modular design: supports both boiler and brake system leakdown.
 
 🔧 Installation
@@ -21,7 +33,11 @@ Enable LeakDown in UMM.
 ⚙️ Configuration
 Open the mod settings UI via Unity Mod Manager.
 
-Use the sliders to adjust the leakdown rates for both the steam boiler and brake reservoir (expressed as a % of the real-world baseline of ~10% pressure loss per hour).
+Two independent sliders control the leak rates:
+- Steam Leakdown Rate: 0-500% (default 100% = ~10% pressure loss per in-game hour)
+- Brake Leakdown Rate: 0-500% (default 100% = ~10% pressure loss per in-game hour)
+
+Note: The actual leak rate is automatically adjusted based on locomotive condition (wear system). A damaged loco at 100% slider setting will leak faster than a restored loco at 100%!
 
 🚨 Requirements
 Unity Mod Manager
@@ -29,16 +45,27 @@ Unity Mod Manager
 Tested on Derail Valley version b99.4
 
 🚂 Roadmap
-✅ Steam boiler leakdown (v0.1.0)
+✅ Steam boiler leakdown (v0.3.0 - FULLY WORKING!)
 ✅ Brake system air reservoir leakdown (v0.2.0)
+✅ Locomotive wear-based leak rates (v0.3.0)
 
 🔄 Changelog
+v0.3.0:
+- ✨ MAJOR: Steam boiler leakdown now fully operational!
+- ✨ NEW: Locomotive wear system - damaged locos leak faster, restored ones leak slower
+- Added WearCalculator to determine leak rates based on restoration state
+- Resolved long-standing TrainCar access issue for boiler simulation
+- Code refactoring: Split boiler logic into separate BoilerLeakPatch.cs
+- Performance optimizations with cached reflection
+- Added comprehensive debug logging (DEBUG builds)
+
 v0.2.0:
 - Added realistic brake reservoir leakdown (mass-based, exponential decay).
+- Dynamic time scaling based on game day length settings.
 - Improved boiler leakdown to remove only steam mass, not water.
 
 v0.1.0:
-- Initial release with configurable boiler leakdown.
+- Initial release with configurable brake leakdown.
 
 📝 License
 This mod is licensed under the GNU General Public License v3.0 (GPLv3).
