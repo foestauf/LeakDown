@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using DV.Simulation.Cars;
 using HarmonyLib;
 using LocoSim.Implementations;
 using UnityEngine;
@@ -87,79 +88,58 @@ namespace DvMod.LeakDown
         }
     }
 
-    [HarmonyPatch(typeof(Boiler))]
-    [HarmonyPatch("Tick")]
-    public static class BoilerTickPatch
+    /// <summary>
+    /// Patch at SimController level to access both TrainCar and Boiler
+    /// This is the correct architecture since SimController has:
+    /// - .train field (TrainCar)
+    /// - .simFlow field (SimulationFlow containing Boiler)
+    /// </summary>
+    [HarmonyPatch(typeof(SimController))]
+    [HarmonyPatch("Update")]
+    public static class SimControllerUpdatePatch
     {
-        // Cache reflection FieldInfo for performance - only look up once
-        private static FieldInfo? _simControllerField;
-        private static FieldInfo? _trainField;
-        private static bool _reflectionAttempted = false;
+        // Cache the boiler component ID for each steam loco to avoid repeated lookups
+        private static readonly System.Collections.Generic.Dictionary<SimController, Boiler> _controllerToBoiler =
+            new System.Collections.Generic.Dictionary<SimController, Boiler>();
 
         [HarmonyPostfix]
-        public static void Postfix(Boiler __instance, float delta)
+        public static void Postfix(SimController __instance)
         {
-            // Boiler is NOT a MonoBehaviour, so we need to access TrainCar via SimController
-            // Strategy: Boiler -> SimController (via reflection) -> train (public field)
-            TrainCar? trainCar = null;
+            // Only process steam locomotives
+            if (__instance.train == null || __instance.train._isLoco != true)
+                return;
 
-            if (!_reflectionAttempted)
+            // Check if this is a steam loco by trying to find a boiler
+            Boiler? boiler = null;
+
+            if (_controllerToBoiler.TryGetValue(__instance, out var cachedBoiler))
             {
-                // Cache the FieldInfo on first run for performance
-                _simControllerField = typeof(Boiler).GetField("simController", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (_simControllerField == null)
-                {
-                    // Try alternative field names
-                    _simControllerField = typeof(Boiler).GetField("controller", BindingFlags.NonPublic | BindingFlags.Instance);
-                }
-                if (_simControllerField == null)
-                {
-                    _simControllerField = typeof(Boiler).GetField("sim", BindingFlags.NonPublic | BindingFlags.Instance);
-                }
-
-                _reflectionAttempted = true;
-
-                if (_simControllerField == null)
-                {
-                    Main.ModEntry?.Logger.Warning("[LeakDown] Could not find SimController field on Boiler - TrainCar access will fail");
-                }
+                boiler = cachedBoiler;
             }
-
-            if (_simControllerField != null)
+            else
             {
-                try
+                // Search for Boiler component in the SimulationFlow
+                if (__instance.simFlow != null && __instance.simFlow.OrderedSimComps != null)
                 {
-                    // Get the SimController instance from the Boiler
-                    var simController = _simControllerField.GetValue(__instance);
-                    if (simController != null)
+                    foreach (var component in __instance.simFlow.OrderedSimComps)
                     {
-                        // Cache the train field lookup on first successful simController access
-                        if (_trainField == null)
+                        if (component is Boiler b)
                         {
-                            _trainField = simController.GetType().GetField("train", BindingFlags.Public | BindingFlags.Instance);
-                            if (_trainField == null)
-                            {
-                                Main.ModEntry?.Logger.Warning("[LeakDown] Could not find 'train' field on SimController");
-                            }
+                            boiler = b;
+                            _controllerToBoiler[__instance] = b;
+                            break;
                         }
-
-                        if (_trainField != null)
-                        {
-                            trainCar = _trainField.GetValue(simController) as TrainCar;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Log occasionally to avoid spam, then continue with null trainCar
-                    if (UnityEngine.Random.value < 0.001f) // Log ~0.1% of failures
-                    {
-                        Main.ModEntry?.Logger.Warning($"[LeakDown] Failed to get TrainCar: {ex.Message}");
                     }
                 }
             }
 
-            __instance.SimulateLeakdown(trainCar, delta);
+            // If we found a boiler, apply leakdown with full TrainCar access for wear calculation
+            if (boiler != null)
+            {
+                // Note: We use Time.deltaTime here instead of the Update's parameter
+                // because SimController.Update doesn't take a delta parameter
+                boiler.SimulateLeakdown(__instance.train, Time.deltaTime);
+            }
         }
     }
 }

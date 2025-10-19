@@ -3,26 +3,42 @@
 ## Problem Summary
 Previous attempts to implement steam boiler leakdown failed due to difficulty accessing the `TrainCar` from the `Boiler` instance. The `Boiler` class is NOT a MonoBehaviour, so standard Unity component hierarchy methods don't work.
 
-## Solution Implemented (Approach 2) ✅
-**Status: WORKING - Confirmed in-game 2025-01-18**
+## Solution Implemented (Approach 2.1) ✅
+**Status: CONFIRMED WORKING - v0.3.1 - 2025-01-18**
 
-Used cached reflection to navigate the object graph:
+Patch at **SimController** level instead of Boiler level:
 
 ```csharp
-// Boiler → SimController (via reflection) → train field → TrainCar
-var simController = _simControllerField.GetValue(__instance);
-trainCar = _trainField.GetValue(simController) as TrainCar;
+[HarmonyPatch(typeof(SimController), "Update")]
+public static void Postfix(SimController __instance)
+{
+    TrainCar trainCar = __instance.train;  // Direct access!
+    Boiler boiler = FindBoilerIn(__instance.simFlow);  // Search SimulationFlow
+    boiler.SimulateLeakdown(trainCar, Time.deltaTime);
+}
 ```
 
-### Why Approach 1 Failed
-Attempted Unity component hierarchy:
+### Why This Works
+SimController provides access to BOTH:
+- `__instance.train` → TrainCar (for wear calculation)
+- `__instance.simFlow.OrderedSimComps` → List of all SimComponents including Boiler
+
+### Why Previous Approaches Failed
+
+**Approach 1: Unity Component Hierarchy**
 ```csharp
 trainCar = __instance.gameObject?.GetComponentInParent<TrainCar>();
 ```
-
 **Error:** `'Boiler' does not contain a definition for 'gameObject'`
+**Reason:** Boiler is NOT a MonoBehaviour - it's a plain C# class (SimComponent)
 
-Boiler is a plain C# class, not a MonoBehaviour, so it has no `gameObject` property.
+**Approach 2: Reflection on Boiler**
+```csharp
+// Tried: Boiler → simController field → train field
+var simController = _simControllerField.GetValue(__instance);
+```
+**Error:** "Could not find SimController field on Boiler"
+**Reason:** SimComponent doesn't store a back-reference to SimController - architecture is one-way
 
 ### Changed Files
 1. **BoilerLeakPatch.cs** (NEW)

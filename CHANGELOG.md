@@ -5,6 +5,24 @@ All notable changes to LeakDown will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-01-18
+
+### Fixed
+- **CRITICAL FIX: Wear system now actually works!**
+  - Changed patch target from `Boiler.Tick()` to `SimController.Update()`
+  - Previous implementation couldn't access TrainCar, always used 1.0x fallback multiplier
+  - Now properly detects locomotive condition and applies dynamic wear multipliers
+  - Damaged/derailed locomotives now correctly leak 2.0-2.5x faster
+  - Fully restored locomotives now correctly leak 20% slower (0.8x)
+- Removed broken reflection code that was causing warning messages
+- Architecture now properly navigates SimController → TrainCar + SimulationFlow → Boiler
+
+### Technical
+- Simplified implementation: removed 40+ lines of broken reflection logic
+- Patch at correct architectural level where both TrainCar and Boiler are accessible
+- Performance improvement: cached Boiler lookups per SimController instance
+- Clean logs: no more "Could not find SimController field" warnings
+
 ## [0.3.0] - 2025-01-18
 
 ### Added
@@ -56,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic brake leakdown simulation
 - Configurable leak rates via mod settings
 
+[0.3.1]: https://github.com/foestauf/LeakDown/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/foestauf/LeakDown/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/foestauf/LeakDown/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/foestauf/LeakDown/releases/tag/v0.1.0

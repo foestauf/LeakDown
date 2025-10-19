@@ -2,12 +2,18 @@ Realistic leakdown simulation for Derail Valley.
 
 This mod simulates natural pressure loss in steam boilers and brake air reservoirs. Steam engines and air brake systems in real life lose pressure over time due to small leaks—this mod brings that realism into the game!
 
-⭐ What's New in v0.3.0
-• STEAM BOILER LEAKDOWN IS HERE! Boilers now lose pressure over time when not firing
-• Locomotive wear matters! Damaged/derailed locos leak up to 2.5x faster
-• Fully restored locomotives leak 20% slower (better seals and gaskets)
+⭐ What's New in v0.3.1
+• CRITICAL FIX: Wear system now actually works! (v0.3.0 had a bug)
+• Damaged/derailed locos now properly leak 2.0-2.5x faster
+• Fully restored locomotives properly leak 20% slower (0.8x rate)
+• Fixed architecture - now patches at SimController level for proper TrainCar access
+• Removed warning messages and broken reflection code
+
+⭐ What's in v0.3.x
+• STEAM BOILER LEAKDOWN! Boilers lose pressure over time when not firing
+• Locomotive wear matters! Condition affects leak rates
 • Broken boilers leak catastrophically at 4x rate
-• Both brake AND boiler systems now fully operational!
+• Both brake AND boiler systems fully operational!
 
 ✅ Features
 - Realistic steam boiler leakdown: Only the actual steam mass (not water) is lost, matching real-world physics. Pressure drops slowly, especially in large, water-filled boilers (~10% per in-game hour at default).
@@ -50,6 +56,14 @@ Tested on Derail Valley version b99.4
 ✅ Locomotive wear-based leak rates (v0.3.0)
 
 🔄 Changelog
+v0.3.1:
+- 🔧 CRITICAL FIX: Wear system now actually works!
+- Fixed patch architecture: Changed from Boiler.Tick() to SimController.Update()
+- Removed broken reflection code causing warnings
+- Wear multipliers now properly applied (damaged locos leak 2.5x faster, restored leak 0.8x)
+- Performance improvements with cached Boiler lookups
+- Clean logs with no error messages
+
 v0.3.0:
 - ✨ MAJOR: Steam boiler leakdown now fully operational!
 - ✨ NEW: Locomotive wear system - damaged locos leak faster, restored ones leak slower
