@@ -23,17 +23,9 @@ namespace DvMod.LeakDown
             }
 
             // Check restoration state if we have a valid TrainCar
-            if (trainCar != null && trainCar._isLoco.HasValue && trainCar._isLoco.Value)
+            if (trainCar != null && trainCar.IsLoco)
             {
-                float baseMultiplier = GetBaseWearMultiplier(trainCar);
-
-                // Combine broken boiler effect with restoration state if both apply
-                if (boiler != null && boiler.isBrokenReadOut.Value != 0f)
-                {
-                    return baseMultiplier * 2.0f; // Broken + restoration state
-                }
-
-                return baseMultiplier;
+                return GetBaseWearMultiplier(trainCar);
             }
 
             return 1.0f; // Default multiplier if no information available
@@ -46,7 +38,7 @@ namespace DvMod.LeakDown
         /// <returns>Multiplier for leak rate (1.0 = baseline, higher = more leaks)</returns>
         public static float GetBrakeWearMultiplier(TrainCar trainCar)
         {
-            if (trainCar == null || !trainCar._isLoco.HasValue || !trainCar._isLoco.Value)
+            if (trainCar == null || !trainCar.IsLoco)
             {
                 return 1.0f; // Default for non-locomotive cars
             }
@@ -67,26 +59,25 @@ namespace DvMod.LeakDown
                 return 1.0f; // No restoration controller = baseline
             }
 
-            var state = restorationController.State;
-
-            // Use string comparison to avoid hardcoding enum values that might change
-            string stateName = state.ToString();
-
-            return stateName switch
+            return restorationController.State switch
             {
-                // Most damaged states (highest multipliers)
-                var s when s.Contains("S1") || s.Contains("Derailed") => 2.5f,
-                var s when s.Contains("S2") || s.Contains("Rerailed") => 2.0f,
-                var s when s.Contains("S3") || s.Contains("RerailedCars") => 1.5f,
+                // Wreck states - not yet recovered (highest multipliers)
+                LocoRestorationController.RestorationState.S0_Initialized => 2.5f,
+                LocoRestorationController.RestorationState.S1_UnlockedRestorationLicense => 2.5f,
+                LocoRestorationController.RestorationState.S2_LocoUnblocked => 2.0f,
+                LocoRestorationController.RestorationState.S3_RerailedCars => 1.5f,
 
-                // Partially restored states (moderate multipliers)
-                var s when s.Contains("S4") || s.Contains("Heated") => 1.2f,
-                var s when s.Contains("S5") || s.Contains("Repair") => 1.2f,
+                // Restoration in progress (moderate multipliers)
+                LocoRestorationController.RestorationState.S4_OnDestinationTrack => 1.2f,
+                LocoRestorationController.RestorationState.S5_PartOrdered => 1.2f,
+                LocoRestorationController.RestorationState.S6_PartPickedUp => 1.2f,
+                LocoRestorationController.RestorationState.S7_PartDelivered => 1.2f,
+                LocoRestorationController.RestorationState.S8_PartInstalled => 1.0f,
 
-                // Fully restored state (reduced multiplier)
-                var s when s.Contains("S6") || s.Contains("FullyRestored") || s.Contains("Restored") => 0.8f,
+                // Fully serviced - better seals (reduced multiplier)
+                LocoRestorationController.RestorationState.S9_LocoServiced => 0.8f,
 
-                // Default for unknown states
+                // Default for any states added in future game versions
                 _ => 1.0f
             };
         }
@@ -100,7 +91,7 @@ namespace DvMod.LeakDown
         /// <returns>Description string</returns>
         public static string GetConditionDescription(TrainCar trainCar, float multiplier)
         {
-            if (trainCar == null || !trainCar._isLoco.HasValue || !trainCar._isLoco.Value)
+            if (trainCar == null || !trainCar.IsLoco)
             {
                 return "Not a locomotive";
             }

@@ -5,6 +5,33 @@ All notable changes to LeakDown will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-06-11
+
+### Fixed
+- **Wear multipliers now match the game's actual restoration states**
+  - State detection reworked against the game's
+    `LocoRestorationController.RestorationState` values
+  - Fully serviced locomotives (S9_LocoServiced) now correctly get the 0.8x bonus
+    (previously they got 1.0x and the advertised bonus never applied)
+  - Wreck-state locos (S0_Initialized) now correctly leak 2.5x faster
+    (previously 1.0x)
+  - S3_RerailedCars now correctly gets 1.5x (previously 2.0x)
+  - Wear now decreases monotonically as restoration progresses
+- Locomotive detection now uses the public `IsLoco` property instead of its lazy
+  backing field, which could be unset and silently skip real locomotives
+- Brake patch errors are now logged once instead of every sim tick
+
+### Technical
+- Restoration state matching switched from string `Contains` to a direct enum
+  switch on `LocoRestorationController.RestorationState`
+- Boiler cache switched to `ConditionalWeakTable` so despawned locomotives no
+  longer keep their simulation graph alive (memory leak)
+- Non-steam locomotives now cache the "no boiler" result instead of scanning
+  the simulation flow every frame
+- Brake patch caches the `BrakeSystem` → `TrainCar` lookup instead of walking
+  the component hierarchy every sim tick
+- Removed unreachable "broken + restoration" branch and dead locals
+
 ## [0.3.1] - 2025-01-18
 
 ### Fixed
@@ -74,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic brake leakdown simulation
 - Configurable leak rates via mod settings
 
+[0.3.2]: https://github.com/foestauf/LeakDown/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/foestauf/LeakDown/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/foestauf/LeakDown/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/foestauf/LeakDown/compare/v0.1.0...v0.2.0

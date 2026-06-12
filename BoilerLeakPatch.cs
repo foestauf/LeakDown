@@ -12,35 +12,13 @@ namespace DvMod.LeakDown
         // Cache reflection for performance
         private static readonly FieldInfo VesselField = typeof(Boiler).GetField("vessel", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        /// <summary>
-        /// Gets the wear multiplier for boiler leak rates based on locomotive condition
-        /// </summary>
-        /// <param name="trainCar">The train car to check</param>
-        /// <param name="boiler">The boiler to check</param>
-        /// <returns>Multiplier for leak rate (1.0 = baseline, higher = more leaks)</returns>
-        private static float GetBoilerWearMultiplier(TrainCar? trainCar, Boiler boiler)
-        {
-            if (trainCar != null)
-            {
-                return WearCalculator.GetBoilerWearMultiplier(trainCar, boiler);
-            }
-
-            // Fallback: if we can't access TrainCar, just check boiler broken state
-            if (boiler.isBrokenReadOut.Value != 0f)
-            {
-                return 4.0f; // Broken boiler = 4x leak rate
-            }
-
-            return 1.0f; // Default multiplier if no TrainCar access
-        }
-
         public static void SimulateLeakdown(this Boiler boiler, TrainCar? trainCar, float delta)
         {
             // Only skip leakdown if boiler is broken AND pressure is already at minimum
             if (boiler.isBrokenReadOut.Value != 0f && boiler.pressureReadOut.Value <= 1f) return;
 
             float userFrac = Main.Settings.percentOfRealistic / 100f;
-            float wearMultiplier = GetBoilerWearMultiplier(trainCar, boiler);
+            float wearMultiplier = WearCalculator.GetBoilerWearMultiplier(trainCar, boiler);
             float k = Settings.BASELINE_K * userFrac * wearMultiplier * Main.TimeScale;
 
             float P0 = boiler.pressureReadOut.Value;
@@ -81,9 +59,6 @@ namespace DvMod.LeakDown
                 vessel.Update();
                 // propagate new pressure back into the boiler readout
                 boiler.pressureReadOut.Value = vessel.pressure;
-                // verify that mass and pressure actually changed
-                float newMass = vessel.mass;
-                float newPressure = vessel.pressure;
             }
         }
     }
@@ -98,39 +73,33 @@ namespace DvMod.LeakDown
     [HarmonyPatch("Update")]
     public static class SimControllerUpdatePatch
     {
-        // Cache the boiler component ID for each steam loco to avoid repeated lookups
-        private static readonly System.Collections.Generic.Dictionary<SimController, Boiler> _controllerToBoiler =
-            new System.Collections.Generic.Dictionary<SimController, Boiler>();
+        // Weak-keyed cache so despawned locos don't keep their sim graph alive.
+        // A null value is a cached miss (loco with no boiler, e.g. diesel).
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SimController, Boiler?> _controllerToBoiler =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<SimController, Boiler?>();
 
         [HarmonyPostfix]
         public static void Postfix(SimController __instance)
         {
-            // Only process steam locomotives
-            if (__instance.train == null || __instance.train._isLoco != true)
+            // Only process locomotives
+            if (__instance.train == null || !__instance.train.IsLoco)
                 return;
 
-            // Check if this is a steam loco by trying to find a boiler
-            Boiler? boiler = null;
+            if (!_controllerToBoiler.TryGetValue(__instance, out var boiler))
+            {
+                // Sim graph not built yet — retry next frame rather than caching a miss
+                if (__instance.simFlow?.OrderedSimComps == null)
+                    return;
 
-            if (_controllerToBoiler.TryGetValue(__instance, out var cachedBoiler))
-            {
-                boiler = cachedBoiler;
-            }
-            else
-            {
-                // Search for Boiler component in the SimulationFlow
-                if (__instance.simFlow != null && __instance.simFlow.OrderedSimComps != null)
+                foreach (var component in __instance.simFlow.OrderedSimComps)
                 {
-                    foreach (var component in __instance.simFlow.OrderedSimComps)
+                    if (component is Boiler b)
                     {
-                        if (component is Boiler b)
-                        {
-                            boiler = b;
-                            _controllerToBoiler[__instance] = b;
-                            break;
-                        }
+                        boiler = b;
+                        break;
                     }
                 }
+                _controllerToBoiler.Add(__instance, boiler);
             }
 
             // If we found a boiler, apply leakdown with full TrainCar access for wear calculation

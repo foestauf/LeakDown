@@ -10,25 +10,28 @@ namespace DvMod.LeakDown
     [HarmonyPatch("SimulateLeakage")]
     public static class BrakeSystemSimulateLeakagePatch
     {
+        // Weak-keyed cache to avoid a GetComponentInParent hierarchy walk per car per tick.
+        // Only successful lookups are cached so cars still initializing get retried.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<DV.Simulation.Brake.BrakeSystem, TrainCar> _brakeToCar =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<DV.Simulation.Brake.BrakeSystem, TrainCar>();
 
+        // Log unexpected errors once instead of spamming every sim tick
+        private static bool _errorLogged;
 
         [HarmonyPostfix]
         public static void Postfix(DV.Simulation.Brake.BrakeSystem __instance, float dt)
         {
             try
             {
-                // Attempt to get the TrainCar this BrakeSystem is associated with.
-                // This assumes BrakeSystem is a UnityEngine.Object (e.g., MonoBehaviour).
-                if (__instance.gameObject == null) return; // Not a UnityEngine.Object or no GameObject associated
-
-                var trainCar = __instance.gameObject.GetComponentInParent<TrainCar>();
-                if (trainCar == null)
+                if (!_brakeToCar.TryGetValue(__instance, out var trainCar))
                 {
-                    // Not part of a TrainCar or TrainCar component not found in parents.
-                    return;
+                    if (__instance.gameObject == null) return; // No GameObject associated
+                    trainCar = __instance.gameObject.GetComponentInParent<TrainCar>();
+                    if (trainCar == null) return; // Not part of a TrainCar (yet) - retry next tick
+                    _brakeToCar.Add(__instance, trainCar);
                 }
 
-                if (trainCar._isLoco == false)
+                if (!trainCar.IsLoco)
                 {
                     // Not a locomotive, so skip the leak logic.
                     return;
@@ -65,7 +68,11 @@ namespace DvMod.LeakDown
             }
             catch (Exception ex)
             {
-                Main.ModEntry?.Logger.Log($"Error in BrakeLeakPatch: {ex.Message}");
+                if (!_errorLogged)
+                {
+                    _errorLogged = true;
+                    Main.ModEntry?.Logger.Log($"Error in BrakeLeakPatch (further errors suppressed): {ex}");
+                }
             }
         }
     }

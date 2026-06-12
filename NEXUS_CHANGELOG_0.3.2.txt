@@ -1,0 +1,37 @@
+VERSION 0.3.2 - WEAR SYSTEM ACCURACY FIX
+
+=== FIXES ===
+
+WEAR MULTIPLIERS NOW MATCH THE GAME'S REAL RESTORATION STATES
+• Wear detection has been reworked directly against the game's restoration system
+• Fully serviced locomotives now correctly get the 0.8x "better seals" bonus
+  (previously the bonus was not always applied)
+• Unrestored wrecks now correctly leak 2.5x faster (previously 1.0x)
+• Rerailed locos now correctly get 1.5x (previously 2.0x)
+• Wear now decreases smoothly as you progress through restoration:
+  Wreck 2.5x → Unblocked 2.0x → Rerailed 1.5x → In restoration 1.2x →
+  Part installed 1.0x → Fully serviced 0.8x
+• Broken boiler still leaks at a catastrophic 4.0x
+
+RELIABILITY
+• Locomotive detection hardened - some locos could previously be silently
+  skipped before their state was initialized
+• Errors are now logged once instead of flooding the log
+
+=== PERFORMANCE ===
+
+• Fixed a memory leak: despawned locomotives no longer kept alive by the
+  boiler cache
+• Diesel/electric locos no longer scan their simulation graph every frame
+• Brake patch caches its car lookup instead of searching every sim tick
+
+=== CONFIGURATION ===
+
+Unchanged from 0.3.1 - two independent sliders in Unity Mod Manager:
+• Steam Leakdown Rate: 0-500% (default 100% = ~10%/hour)
+• Brake Leakdown Rate: 0-500% (default 100% = ~10%/hour)
+
+=== UPGRADING ===
+
+Simply install over the old version - no special steps required!
+Your existing settings will be preserved.

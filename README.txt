@@ -2,12 +2,12 @@ Realistic leakdown simulation for Derail Valley.
 
 This mod simulates natural pressure loss in steam boilers and brake air reservoirs. Steam engines and air brake systems in real life lose pressure over time due to small leaks—this mod brings that realism into the game!
 
-⭐ What's New in v0.3.1
-• CRITICAL FIX: Wear system now actually works! (v0.3.0 had a bug)
-• Damaged/derailed locos now properly leak 2.0-2.5x faster
-• Fully restored locomotives properly leak 20% slower (0.8x rate)
-• Fixed architecture - now patches at SimController level for proper TrainCar access
-• Removed warning messages and broken reflection code
+⭐ What's New in v0.3.2
+• FIX: Wear multipliers now match the game's actual restoration states
+• Fully serviced locos now correctly get the 0.8x "better seals" bonus
+• Unrestored wrecks now correctly leak 2.5x faster
+• Wear decreases smoothly as restoration progresses (no more odd jumps)
+• Performance: cached lookups, fixed a memory leak with despawned locos
 
 ⭐ What's in v0.3.x
 • STEAM BOILER LEAKDOWN! Boilers lose pressure over time when not firing
@@ -56,6 +56,13 @@ Tested on Derail Valley version b99.4
 ✅ Locomotive wear-based leak rates (v0.3.0)
 
 🔄 Changelog
+v0.3.2:
+- 🔧 FIX: Wear multipliers now match the game's actual restoration states
+- Fully serviced locos correctly leak 20% slower; wrecks correctly leak 2.5x faster
+- Fixed a memory leak where despawned locos were kept alive by the boiler cache
+- Performance: cached brake/boiler lookups instead of per-frame searches
+- Errors now logged once instead of spamming the log
+
 v0.3.1:
 - 🔧 CRITICAL FIX: Wear system now actually works!
 - Fixed patch architecture: Changed from Boiler.Tick() to SimController.Update()
